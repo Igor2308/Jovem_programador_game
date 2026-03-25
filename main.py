@@ -16,10 +16,10 @@ running = True
 #grupo de jogadores
 players = pygame.sprite.Group()
 player = Player("P1")
-players.add(Player)
+players.add(player)
 
 #grupo moedas
-coins = pygame.Sprite.Group()
+coins = pygame.sprite.Group()
 for a in range(15):
     coin = Coin(a*10,a*10)
     coins.add(coin)
@@ -39,8 +39,8 @@ while running:
     player.rect.clamp_ip(screen.get_rect())
     screen.fill((45,156,200))
     #colisão
-    colisao = pygame.sprite.spritecollide(players,coins,True)
-    if colisão:
+    colisao = pygame.sprite.spritecollide(player,coins,True)
+    if colisao:
         print("Colisão")
 
     players.update(velocidade)

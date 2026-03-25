@@ -21,25 +21,25 @@ class Player(pygame.sprite.Sprite): #o Sprite é a classe pai
         self.image = image_loaded
         self.original_image = self.image.copy()
     
-def update(self,velocidade):
-    keys = pygame.key.get_pressed()
-    angulo = 0 
+    def update(self,velocidade):
+        keys = pygame.key.get_pressed()
+        angulo = 0 
 
-    if keys[pygame.K_s]:
-        player.rect.y += velocidade
-        angulo = 360
-    elif keys[pygame.K_w]:
-        player.rect.y -= velocidade
-        angulo = 180
-    elif keys[pygame.K_d]:
-        player.rect.x += velocidade
-        angulo = 90
-    elif keys[pygame.K_a]:
-        player.rect.x -= velocidade
-        angulo = -90
+        if keys[pygame.K_s]:
+            self.rect.y += velocidade
+            angulo = 360
+        elif keys[pygame.K_w]:
+            self.rect.y -= velocidade
+            angulo = 180
+        elif keys[pygame.K_d]:
+            self.rect.x += velocidade
+            angulo = 90
+        elif keys[pygame.K_a]:
+            self.rect.x -= velocidade
+            angulo = -90
 
-    if angulo is not 0:
-        centro = self.rect.center
-        self.image = pygame.transform.rotate(self.original_image, angulo)
-        self.rect = self.image.get_rect(center=centro)
+        if angulo is not 0:
+            centro = self.rect.center
+            self.image = pygame.transform.rotate(self.original_image, angulo)
+            self.rect = self.image.get_rect(center=centro)
 
