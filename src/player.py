@@ -1,5 +1,5 @@
 import pygame 
-from  settings import PLAYER_SIZE,WIDTH,HEIGHT,FPS,PLAYER_SPEED
+from settings import WIDTH,HEIGHT,ANIMACAO_SPEED,PLAYER_SIZE
 import os 
 
 class Player(pygame.sprite.Sprite): #o Sprite é a classe pai 
@@ -7,39 +7,77 @@ class Player(pygame.sprite.Sprite): #o Sprite é a classe pai
         super().__init__()
         self.name = name          #self refere-se a class player 
         self.score = 0 
-        self.image = pygame.Surface(PLAYER_SIZE)
+        self.frames_parado = self.carregar_frames('imagens/PARADO.png',7)        
+        self.frames_andando = self.carregar_frames('imagens/ANDA.png',8)
+        self.direcao = "direita"
 
-        try:
-            image_path = os.path.join('imagens','gato_down.png') # carrega o sprite da pasta 
-            image_loaded  = pygame.image.load(image_path).convert_alpha()
-            self.image = image_loaded
-        except pygame.error as e:
-            print(f"erro encontrado {e}")
-            self.image.fill((255,120,255))
+        self.estado = "parado"
+        self.frame_atual = 0
+        self.velocidade_animacao = ANIMACAO_SPEED
+
+        self.image = self.frames_parado[0]  
         self.rect = self.image.get_rect()
         self.rect.center = (WIDTH/2, HEIGHT/2)
-        self.image = image_loaded
-        self.original_image = self.image.copy()
+
     
-    def update(self,velocidade):
+    def carregar_frames(self,caminho, num_frames):
+        sprite_sheet = pygame.image.load(caminho).convert_alpha()
+
+        largura_frame = sprite_sheet.get_width() // num_frames
+        altura_frame =  sprite_sheet.get_height()
+
+        frames = []
+
+        for i in range(num_frames):
+            frame = sprite_sheet.subsurface((i * largura_frame, 0, largura_frame, altura_frame))
+            frame = pygame.transform.scale(frame, PLAYER_SIZE)
+            frames.append(frame)
+    
+        return frames
+
+    def update(self, velocidade):
+
         keys = pygame.key.get_pressed()
-        angulo = 0 
+
+        movendo = False
 
         if keys[pygame.K_s]:
             self.rect.y += velocidade
-            angulo = 360
-        elif keys[pygame.K_w]:
+            movendo = True
+        if keys[pygame.K_w]:
             self.rect.y -= velocidade
-            angulo = 180
-        elif keys[pygame.K_d]:
+            movendo = True
+        if keys[pygame.K_d]:
             self.rect.x += velocidade
-            angulo = 90
-        elif keys[pygame.K_a]:
+            movendo = True
+            self.direcao = "direita"
+        if keys[pygame.K_a]:
             self.rect.x -= velocidade
-            angulo = -90
+            movendo = True
+            self.direcao = "esquerda" # diz pra que lado o sprite deve ficar apontado
 
-        if angulo is not 0:
-            centro = self.rect.center
-            self.image = pygame.transform.rotate(self.original_image, angulo)
-            self.rect = self.image.get_rect(center=centro)
+        #aqui vai ler se ele ta parado ou andando
+        novo_estado = "andando" if movendo else "parado"
+
+        if novo_estado != self.estado:
+            self.frame_atual = 0
+
+        self.estado = novo_estado
+
+        #animação
+        self.frame_atual += self.velocidade_animacao
+
+        if self.estado == "andando":
+            frames = self.frames_andando
+        else:
+            frames = self.frames_parado
+
+        if self.frame_atual >= len(frames):
+            self.frame_atual = 0
+
+        self.image = frames[int(self.frame_atual)]
+        self.mask = pygame.mask.from_surface(self.image)
+
+        if self.direcao == "esquerda":
+            self.image = pygame.transform.flip(self.image, True, False)
 

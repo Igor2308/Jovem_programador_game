@@ -39,7 +39,7 @@ while running:
     player.rect.clamp_ip(screen.get_rect())
     screen.fill((45,156,200))
     #colisão
-    colisao = pygame.sprite.spritecollide(player,coins,True)
+    colisao = pygame.sprite.spritecollide(player,coins,True,pygame.sprite.collide_mask)
     if colisao:
         print("Colisão")
 

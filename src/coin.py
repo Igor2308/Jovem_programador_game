@@ -10,6 +10,7 @@ class Coin(pygame.sprite.Sprite): #o Sprite é a classe pai
             image_path = os.path.join('imagens','coin.png')
             self.image = pygame.image.load (image_path).convert_alpha() # carrega o sprite da pasta 
             self.image = pygame.transform.scale(self.image, (45,45))
+            self.mask = pygame.mask.from_surface(self.image)
         except:
             self.image = pygame.Surface((32,32))
             self.image.fill((255,255,0))
