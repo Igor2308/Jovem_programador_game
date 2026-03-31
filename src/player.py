@@ -19,6 +19,11 @@ class Player(pygame.sprite.Sprite): #o Sprite é a classe pai
         self.rect = self.image.get_rect()
         self.rect.center = (WIDTH/2, HEIGHT/2)
 
+        # HITBOX separada 
+        self.hitbox = pygame.Rect(0, 0, 30, 40)  # ajusta depois
+        self.hitbox.center = self.rect.center
+        
+
     
     def carregar_frames(self,caminho, num_frames):
         sprite_sheet = pygame.image.load(caminho).convert_alpha()
@@ -42,17 +47,17 @@ class Player(pygame.sprite.Sprite): #o Sprite é a classe pai
         movendo = False
 
         if keys[pygame.K_s]:
-            self.rect.y += velocidade
+            self.hitbox.y += velocidade
             movendo = True
         if keys[pygame.K_w]:
-            self.rect.y -= velocidade
+            self.hitbox.y -= velocidade
             movendo = True
         if keys[pygame.K_d]:
-            self.rect.x += velocidade
+            self.hitbox.x += velocidade
             movendo = True
             self.direcao = "direita"
         if keys[pygame.K_a]:
-            self.rect.x -= velocidade
+            self.hitbox.x -= velocidade
             movendo = True
             self.direcao = "esquerda" # diz pra que lado o sprite deve ficar apontado
 
@@ -75,9 +80,14 @@ class Player(pygame.sprite.Sprite): #o Sprite é a classe pai
         if self.frame_atual >= len(frames):
             self.frame_atual = 0
 
+        #self.hitbox.center = self.rect.center
+
         self.image = frames[int(self.frame_atual)]
-        self.mask = pygame.mask.from_surface(self.image)
 
         if self.direcao == "esquerda":
             self.image = pygame.transform.flip(self.image, True, False)
 
+        # mantém o sprite centralizado na hitbox
+        self.rect = self.image.get_rect(center=self.hitbox.center)
+
+        
