@@ -138,5 +138,5 @@ class Slime(pygame.sprite.Sprite):
         # verifica se Player está a X pixels de distância
         if distancia <= self.DISTANCIA_ATAQUE:
             if tempo_atual - self.tempo_ataque > self.cooldown_ataque:
-                player.levar_dano(self.dano)
+                player.levar_dano(self.dano, self)
                 self.tempo_ataque = tempo_atual

@@ -12,7 +12,8 @@ class Player(pygame.sprite.Sprite):
         self.frames_andando = self.carregar_frames('imagens/ANDA.png', 8)
         self.frames_hit = self.carregar_frames('imagens/PLAYER_DANO.png', 4)
         self.frames_ataque = self.carregar_frames('imagens/PLAYER_ATAQUE1.png', 6)
-
+        self.frames_morte = self.carregar_frames('imagens/PLAYER_MORTE.png', 12)
+        self.morto = False
         # estado e controle de animação
         self.estado = "parado"
         self.frame_atual = 0
@@ -59,6 +60,17 @@ class Player(pygame.sprite.Sprite):
     def update(self, velocidade, slimes):
         tempo_atual = pygame.time.get_ticks()
         keys = pygame.key.get_pressed()
+
+        if self.morto:
+            self.frame_atual += self.velocidade_animacao
+            if self.frame_atual >= len(self.frames_morte):
+                self.frame_atual = len(self.frames_morte) - 1  # mantém o último frame
+                return "fim_animacao_morte"  # sinaliza que a animação terminou
+            self.image = self.frames_morte[int(self.frame_atual)]
+            if self.direcao == "esquerda":
+                self.image = pygame.transform.flip(self.image, True, False)
+            self.rect = self.image.get_rect(center=self.hitbox.center)
+            return  # trava tudo até animação acabar
 
         # -----------------------------
         # 1️⃣ Trava de dano
@@ -163,10 +175,28 @@ class Player(pygame.sprite.Sprite):
 
     # -----------------------------
     # 6️⃣ Receber dano
-    def levar_dano(self, dano):
+    def levar_dano(self, dano, origem=None):
+        if self.morto:
+            return
+
         tempo_atual = pygame.time.get_ticks()
-        if tempo_atual - self.tempo_dano > self.cooldown_dano:
+
+        # cria dicionário se não existir
+        if not hasattr(self, "cooldowns_por_inimigo"):
+            self.cooldowns_por_inimigo = {}
+
+        # pega último hit desse inimigo
+        ultimo_hit = self.cooldowns_por_inimigo.get(origem, 0)
+
+        if tempo_atual - ultimo_hit > self.cooldown_dano:
             self.vida -= dano
-            self.tempo_dano = tempo_atual
+
+            if self.vida <= 0:
+                self.vida = 0
+                self.morto = True
+                self.frame_atual = 0
+                return
+
+            self.cooldowns_por_inimigo[origem] = tempo_atual
             self.tomando_dano = True
             self.frame_atual = 0

@@ -19,6 +19,10 @@ running = True
 background = pygame.image.load("imagens/fundo.png").convert()
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
+# fundo de morte FIXO
+fundo_morte = pygame.image.load("imagens/TELA_GAMEOVER.png").convert()
+fundo_morte = pygame.transform.scale(fundo_morte, (WIDTH, HEIGHT))  # ajuste ao tamanho da tela
+
 slimes_abatidos = 0
 
 # player
@@ -39,77 +43,93 @@ for _ in range(2):
 # fonte
 fonte = pygame.font.SysFont(None, 45)
 game_over = False
+tempo_morte_iniciada = 0
+DELAY_GAME_OVER = 1000  # 2 segundos
+
+tela_morte_selecionada = None
+animacao_morte_concluida = False
 
 while running:
     delta = clock.tick(FPS) / 1000.0
-    velocidade = delta * PLAYER_SPEED
+    velocidade = PLAYER_SPEED * delta 
 
-    # eventos
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             running = False
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_ESCAPE:
                 running = False
-            if game_over and evento.key == pygame.K_r:
+            # Reiniciar depois da animação
+            if game_over and animacao_morte_concluida and evento.key == pygame.K_r:
                 player.vida = 100
                 player.hitbox.center = (WIDTH / 2, HEIGHT / 2)
                 player.rect.center = player.hitbox.center
+                player.morto = False
                 for slime in slimes:
-                    slime.rect.topleft = (300, 300)
+                    slime.rect.topleft = posicao_aleatoria()
                 game_over = False
+                animacao_morte_concluida = False
 
-    # fundo
+      # Verifica game over
+    if player.vida <= 0 and not game_over:
+        player.morto = True
+        tempo_morte_iniciada = pygame.time.get_ticks()
+        game_over = True
+
+
+    # Atualiza jogo apenas se não estiver game over
+    # SEMPRE desenha o fundo primeiro
     screen.blit(background, (0, 0))
 
     if not game_over:
-    # Atualiza player e slimes
         player.update(velocidade, slimes)
         slimes.update(player)
 
-        # -------------------------
-        # Contador de Slimes abatidos
+        # 🔥 CONTADOR
         for slime in slimes:
             if slime.morto and not hasattr(slime, "contado"):
                 slimes_abatidos += 1
                 slime.contado = True
 
-        # -------------------------
-        # Spawn de novos Slimes ao morrer
-        for slime in list(slimes):  # list() evita conflito ao remover
+        # 🔥 SPAWN (IMPORTANTE FICAR AQUI)
+        for slime in list(slimes):
             if slime.morto:
                 x, y = posicao_aleatoria()
                 novo_slime = Slime(x, y)
                 slimes.add(novo_slime)
                 slimes.remove(slime)
 
-    # Ordem de desenho: slimes atrás do player
-   # Ordem de desenho: Slimes atrás do Player
+        # contador e spawn continuam iguais...
+    else:
+        # animação de morte continua rodando
+        status = player.update(velocidade, slimes)
+        if status == "fim_animacao_morte":
+            animacao_morte_concluida = True
+
+         
+
+    # Desenha sprites
     slimes.draw(screen)
     players.draw(screen)
 
-    # HUD do contador
+    # HUD
     texto_slimes = fonte.render(f"Slimes abatidos: {slimes_abatidos}", True, (255, 255, 0))
     screen.blit(texto_slimes, (WIDTH - texto_slimes.get_width() - 10, 10))
-
-    # HUD vida
     texto_vida = fonte.render(f"Vida: {player.vida}", True, (255, 255, 255))
     screen.blit(texto_vida, (10, 10))
 
-    # verifica game over
-    if player.vida <= 0:
-        game_over = True
-
-    # tela game over
+    # Mensagens de game over
     if game_over:
-        texto1 = fonte.render("GAME OVER", True, (255, 0, 0))
-        texto2 = fonte.render("Pressione R para reiniciar", True, (255, 255, 255))
-        texto3 = fonte.render("ESC para sair", True, (255, 255, 255))
 
-        screen.blit(texto1, (WIDTH // 2 - 100, HEIGHT // 2 - 40))
-        screen.blit(texto2, (WIDTH // 2 - 150, HEIGHT // 2))
-        screen.blit(texto3, (WIDTH // 2 - 100, HEIGHT // 2 + 40))
+        tempo_atual = pygame.time.get_ticks()
 
+        # DEBUG (opcional, pode apagar depois)
+        # print(tempo_atual - tempo_morte_iniciada)
+
+        if tempo_atual - tempo_morte_iniciada >= DELAY_GAME_OVER:
+            # DESENHA POR CIMA DE TUDO
+            screen.blit(fundo_morte, (0, 0))
+        
     pygame.display.flip()
 
 pygame.quit()
