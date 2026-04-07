@@ -3,6 +3,8 @@ import random
 from settings import WIDTH, HEIGHT, FPS, PLAYER_SIZE, PLAYER_SPEED
 from src.player import Player
 from src.slime import Slime
+from src.pao import Pao
+from src.ui.hud import HUD
 
 def posicao_aleatoria():
     x = random.randint(0, WIDTH - 45)
@@ -14,6 +16,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Teste")
 clock = pygame.time.Clock()
 running = True
+hud = HUD()
 
 # fundo
 background = pygame.image.load("imagens/fundo.png").convert()
@@ -35,13 +38,14 @@ players.add(player)
 # slimes
 slimes = pygame.sprite.Group()
 
+#pao
+drops = pygame.sprite.Group()
+
 for _ in range(2):
     x, y = posicao_aleatoria()
     novo_slime = Slime(x, y)
     slimes.add(novo_slime)
 
-# fonte
-fonte = pygame.font.SysFont(None, 45)
 game_over = False
 tempo_morte_iniciada = 0
 DELAY_GAME_OVER = 1000  # 2 segundos
@@ -84,20 +88,39 @@ while running:
     if not game_over:
         player.update(velocidade, slimes)
         slimes.update(player)
+        drops.update()  
 
-        # 🔥 CONTADOR
+        # CONTADOR
         for slime in slimes:
             if slime.morto and not hasattr(slime, "contado"):
                 slimes_abatidos += 1
                 slime.contado = True
 
-        # 🔥 SPAWN (IMPORTANTE FICAR AQUI)
+        # SPAWN 
         for slime in list(slimes):
             if slime.morto:
+                if random.random() <= 0.5:
+                    offset_x = random.randint(-30, 30)
+                    offset_y = random.randint(-20, 0)
+                    drop = Pao(slime.rect.centerx + offset_x, slime.rect.centery + offset_y)
+                    drops.add(drop)
+
                 x, y = posicao_aleatoria()
                 novo_slime = Slime(x, y)
                 slimes.add(novo_slime)
                 slimes.remove(slime)
+
+        coletado = []
+
+        for drop in drops:
+            if player.hitbox.colliderect(drop.rect):
+                coletado.append(drop)
+                drop.kill()
+
+        for item in coletado:
+            player.vida += 50
+            if player.vida > 100:
+                player.vida = 100
 
         # contador e spawn continuam iguais...
     else:
@@ -111,12 +134,16 @@ while running:
     # Desenha sprites
     slimes.draw(screen)
     players.draw(screen)
+    drops.draw(screen)
+    # GAME OVER (desenha antes)
+    if game_over:
+        tempo_atual = pygame.time.get_ticks()
 
-    # HUD
-    texto_slimes = fonte.render(f"Slimes abatidos: {slimes_abatidos}", True, (255, 255, 0))
-    screen.blit(texto_slimes, (WIDTH - texto_slimes.get_width() - 10, 10))
-    texto_vida = fonte.render(f"Vida: {player.vida}", True, (255, 255, 255))
-    screen.blit(texto_vida, (10, 10))
+        if tempo_atual - tempo_morte_iniciada >= DELAY_GAME_OVER:
+            screen.blit(fundo_morte, (0, 0))
+
+    # HUD sempre fica por cima de tudo
+    hud.draw(screen, player, slimes_abatidos)
 
     # Mensagens de game over
     if game_over:

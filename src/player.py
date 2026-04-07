@@ -46,6 +46,9 @@ class Player(pygame.sprite.Sprite):
         self.distancia_ataque = 60  # alcance em pixels
         self.dano_ataque = 10
 
+        self.rect = self.image.get_rect()
+        self.rect.inflate_ip(-20, -20)  # diminui a hitbox
+
     def carregar_frames(self, caminho, num_frames):
         sprite_sheet = pygame.image.load(caminho).convert_alpha()
         largura_frame = sprite_sheet.get_width() // num_frames
