@@ -1,5 +1,6 @@
 import pygame
 from settings import WIDTH, HEIGHT, ANIMACAO_SPEED, PLAYER_SIZE
+from src.utils.colisoes import limitar_na_tela
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, name):
@@ -138,17 +139,17 @@ class Player(pygame.sprite.Sprite):
         movendo = False
 
         if keys[pygame.K_s]:
-            self.hitbox.y += velocidade
+            self.hitbox.y += int(velocidade)
             movendo = True
         if keys[pygame.K_w]:
-            self.hitbox.y -= velocidade
+            self.hitbox.y -= int(velocidade)
             movendo = True
         if keys[pygame.K_d]:
-            self.hitbox.x += velocidade
+            self.hitbox.x += int(velocidade)
             movendo = True
             self.direcao = "direita"
         if keys[pygame.K_a]:
-            self.hitbox.x -= velocidade
+            self.hitbox.x -= int(velocidade)
             movendo = True
             self.direcao = "esquerda"
 
@@ -174,6 +175,7 @@ class Player(pygame.sprite.Sprite):
         if self.direcao == "esquerda":
             self.image = pygame.transform.flip(self.image, True, False)
 
+        limitar_na_tela(self.hitbox, WIDTH, HEIGHT)
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
     # -----------------------------

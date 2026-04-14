@@ -5,6 +5,8 @@ from src.player import Player
 from src.slime import Slime
 from src.pao import Pao
 from src.ui.hud import HUD
+from src.ui.tela_pause import TelaPause
+from src.ui.tela_game_over import TelaGameOver
 
 def posicao_aleatoria():
     x = random.randint(0, WIDTH - 45)
@@ -17,14 +19,12 @@ pygame.display.set_caption("Teste")
 clock = pygame.time.Clock()
 running = True
 hud = HUD()
+tela_pause = TelaPause()
+tela_game_over = TelaGameOver()
 
 # fundo
 background = pygame.image.load("imagens/fundo.png").convert()
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
-
-# fundo de morte FIXO
-fundo_morte = pygame.image.load("imagens/TELA_GAMEOVER.png").convert()
-fundo_morte = pygame.transform.scale(fundo_morte, (WIDTH, HEIGHT))  # ajuste ao tamanho da tela
 
 slimes_abatidos = 0
 
@@ -46,12 +46,11 @@ for _ in range(2):
     novo_slime = Slime(x, y)
     slimes.add(novo_slime)
 
-game_over = False
-tempo_morte_iniciada = 0
-DELAY_GAME_OVER = 1000  # 2 segundos
+ESTADO_JOGANDO = "jogando"
+ESTADO_PAUSADO = "pausado"
+ESTADO_GAME_OVER = "game_over"
 
-tela_morte_selecionada = None
-animacao_morte_concluida = False
+estado = ESTADO_JOGANDO
 
 while running:
     delta = clock.tick(FPS) / 1000.0
@@ -62,30 +61,31 @@ while running:
             running = False
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_ESCAPE:
-                running = False
-            # Reiniciar depois da animação
-            if game_over and animacao_morte_concluida and evento.key == pygame.K_r:
+                if estado == ESTADO_JOGANDO:
+                    estado = ESTADO_PAUSADO
+                elif estado == ESTADO_PAUSADO:
+                    estado = ESTADO_JOGANDO
+            if estado == ESTADO_GAME_OVER and evento.key == pygame.K_r:
                 player.vida = 100
                 player.hitbox.center = (WIDTH / 2, HEIGHT / 2)
                 player.rect.center = player.hitbox.center
                 player.morto = False
+
                 for slime in slimes:
                     slime.rect.topleft = posicao_aleatoria()
-                game_over = False
-                animacao_morte_concluida = False
 
-      # Verifica game over
-    if player.vida <= 0 and not game_over:
+                estado = ESTADO_JOGANDO
+                # Verifica game over
+
+    if player.vida <= 0 and estado != ESTADO_GAME_OVER:
         player.morto = True
-        tempo_morte_iniciada = pygame.time.get_ticks()
-        game_over = True
-
+        estado = ESTADO_GAME_OVER
 
     # Atualiza jogo apenas se não estiver game over
     # SEMPRE desenha o fundo primeiro
     screen.blit(background, (0, 0))
 
-    if not game_over:
+    if estado == ESTADO_JOGANDO:
         player.update(velocidade, slimes)
         slimes.update(player)
         drops.update()  
@@ -123,40 +123,23 @@ while running:
                 player.vida = 100
 
         # contador e spawn continuam iguais...
-    else:
-        # animação de morte continua rodando
-        status = player.update(velocidade, slimes)
-        if status == "fim_animacao_morte":
-            animacao_morte_concluida = True
-
-         
+    elif estado == ESTADO_GAME_OVER:
+        pass
 
     # Desenha sprites
     slimes.draw(screen)
     players.draw(screen)
     drops.draw(screen)
-    # GAME OVER (desenha antes)
-    if game_over:
-        tempo_atual = pygame.time.get_ticks()
-
-        if tempo_atual - tempo_morte_iniciada >= DELAY_GAME_OVER:
-            screen.blit(fundo_morte, (0, 0))
 
     # HUD sempre fica por cima de tudo
     hud.draw(screen, player, slimes_abatidos)
 
-    # Mensagens de game over
-    if game_over:
+    if estado == ESTADO_PAUSADO:
+        tela_pause.draw(screen)
 
-        tempo_atual = pygame.time.get_ticks()
+    if estado == ESTADO_GAME_OVER:
+        tela_game_over.draw(screen)
 
-        # DEBUG (opcional, pode apagar depois)
-        # print(tempo_atual - tempo_morte_iniciada)
-
-        if tempo_atual - tempo_morte_iniciada >= DELAY_GAME_OVER:
-            # DESENHA POR CIMA DE TUDO
-            screen.blit(fundo_morte, (0, 0))
-        
     pygame.display.flip()
 
 pygame.quit()
