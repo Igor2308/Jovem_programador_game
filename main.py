@@ -1,5 +1,7 @@
 import pygame
 import random
+import pytmx
+import pytmx.util_pygame
 from settings import WIDTH, HEIGHT, FPS, PLAYER_SIZE, PLAYER_SPEED
 from src.player import Player
 from src.slime import Slime
@@ -22,18 +24,7 @@ hud = HUD()
 tela_pause = TelaPause()
 tela_game_over = TelaGameOver()
 
-# fundo
-background = pygame.image.load("imagens/fundo.png").convert()
-background = pygame.transform.scale(background, (WIDTH, HEIGHT))
-
 slimes_abatidos = 0
-
-# player
-player = Player("P1")
-
-# grupo de jogadores
-players = pygame.sprite.Group()
-players.add(player)
 
 # slimes
 slimes = pygame.sprite.Group()
@@ -41,20 +32,36 @@ slimes = pygame.sprite.Group()
 #pao
 drops = pygame.sprite.Group()
 
-for _ in range(2):
-    x, y = posicao_aleatoria()
-    novo_slime = Slime(x, y)
-    slimes.add(novo_slime)
-
+ESTADO_VILA = "vila"
 ESTADO_JOGANDO = "jogando"
 ESTADO_PAUSADO = "pausado"
 ESTADO_GAME_OVER = "game_over"
 
-estado = ESTADO_JOGANDO
+tmx_data = pytmx.util_pygame.load_pygame("mapas/Mapa_principal.tmx")
+
+mapa_background = pygame.image.load("mapas/mapa_inicial.png").convert()
+
+colisoes_vila = []
+for obj in tmx_data.get_layer_by_name("COLISÕES"):
+    colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
+
+player = Player("P1")
+player.colisoes = colisoes_vila
+
+player.hitbox.topleft = (800, 800)
+player.rect.center = player.hitbox.center
+
+players = pygame.sprite.Group()
+players.add(player)
+
+estado = ESTADO_VILA
 
 while running:
     delta = clock.tick(FPS) / 1000.0
     velocidade = PLAYER_SPEED * delta 
+
+    if estado == ESTADO_VILA:
+        slimes.empty()
 
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
@@ -81,15 +88,38 @@ while running:
         player.morto = True
         estado = ESTADO_GAME_OVER
 
+    map_width = mapa_background.get_width()
+    map_height = mapa_background.get_height()
+
     # Atualiza jogo apenas se não estiver game over
     # SEMPRE desenha o fundo primeiro
-    screen.blit(background, (0, 0))
+    camera_x = player.rect.centerx - WIDTH // 2
+    camera_y = player.rect.centery - HEIGHT // 2
+
+    # trava nos limites
+    camera_x = max(0, min(camera_x, map_width - WIDTH))
+    camera_y = max(0, min(camera_y, map_height - HEIGHT))
+
+    screen.blit(mapa_background, (-camera_x, -camera_y))
+    
+    #comando para ver as colisões dos objetos
+    for colisao in colisoes_vila:
+        pygame.draw.rect(screen, (255, 0, 0),
+            (colisao.x - camera_x, colisao.y - camera_y, colisao.width, colisao.height), 2)
+    if estado == ESTADO_VILA:
+        player.update(velocidade, [])  # player funciona, mas sem inimigos
 
     if estado == ESTADO_JOGANDO:
+
+     # para spawnar slimes
+        if len(slimes) == 0:
+            for _ in range(2):
+                x, y = posicao_aleatoria()
+                slimes.add(Slime(x, y))
+
         player.update(velocidade, slimes)
         slimes.update(player)
-        drops.update()  
-
+        drops.update()
         # CONTADOR
         for slime in slimes:
             if slime.morto and not hasattr(slime, "contado"):
@@ -127,9 +157,24 @@ while running:
         pass
 
     # Desenha sprites
-    slimes.draw(screen)
-    players.draw(screen)
-    drops.draw(screen)
+    for p in players:
+        screen.blit(p.image, (p.rect.x - camera_x, p.rect.y - camera_y))
+
+    for slime in slimes:
+        screen.blit(slime.image, (slime.rect.x - camera_x, slime.rect.y - camera_y))
+
+    for drop in drops:
+        screen.blit(drop.image, (drop.rect.x - camera_x, drop.rect.y - camera_y))
+
+    pygame.draw.rect(
+        screen,
+        (0, 255, 0),  # verde
+        (player.hitbox.x - camera_x,
+        player.hitbox.y - camera_y,
+        player.hitbox.width,
+        player.hitbox.height),
+        2  # espessura da borda
+    )
 
     # HUD sempre fica por cima de tudo
     hud.draw(screen, player, slimes_abatidos)

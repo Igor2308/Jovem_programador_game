@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="44" height="24" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="28">
+ <imagelayer id="2" name="floresta">
+  <image source="floresta_sombria.png" width="1408" height="768"/>
+ </imagelayer>
+ <objectgroup id="3" name="colisões">
+  <object id="1" x="279" y="4" width="186" height="293"/>
+  <object id="2" x="279" y="299" width="135" height="66"/>
+  <object id="3" x="-3" y="1" width="276" height="233"/>
+  <object id="4" x="3" y="234" width="148" height="220"/>
+  <object id="5" x="152" y="231" width="65" height="41"/>
+  <object id="6" x="0" y="423" width="96" height="180"/>
+  <object id="7" x="95" y="603" width="77" height="169"/>
+  <object id="8" x="179" y="696" width="259" height="79"/>
+  <object id="9" x="438" y="741" width="970" height="28"/>
+  <object id="11" x="1237" y="655" width="172" height="70"/>
+  <object id="12" x="1301" y="343" width="108" height="310"/>
+  <object id="14" x="1351" y="0" width="57" height="332"/>
+  <object id="15" x="-2" y="-4" width="1350" height="38"/>
+  <object id="18" x="1068.67" y="180.667" width="197.333" height="130.667"/>
+  <object id="19" x="1138" y="34.6667" width="118.667" height="102"/>
+  <object id="20" x="792" y="310" width="310" height="225"/>
+  <object id="21" x="779" y="264" width="291" height="73"/>
+  <object id="22" x="409" y="274" width="99" height="85"/>
+  <object id="23" x="491" y="600" width="36" height="71"/>
+  <object id="24" x="595" y="624" width="31" height="66"/>
+  <object id="25" x="901" y="695" width="34" height="48"/>
+  <object id="26" x="1191" y="676" width="49" height="70"/>
+  <object id="27" x="1241" y="477" width="57" height="68"/>
+ </objectgroup>
+</map>

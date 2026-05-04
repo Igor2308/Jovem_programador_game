@@ -26,7 +26,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (WIDTH/2, HEIGHT/2)
 
         # HITBOX separada
-        self.hitbox = pygame.Rect(0, 0, 30, 40)
+        self.hitbox = pygame.Rect(0, 0, 30, 70)
         self.hitbox.center = self.rect.center
 
         # vida
@@ -49,6 +49,28 @@ class Player(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect()
         self.rect.inflate_ip(-20, -20)  # diminui a hitbox
+    def mover_com_colisao(self, dx, dy, colisoes):
+
+        # eixo X
+        self.hitbox.x += dx
+        for colisao in colisoes:
+            if self.hitbox.colliderect(colisao):
+                if dx > 0:
+                    self.hitbox.right = colisao.left
+                elif dx < 0:
+                    self.hitbox.left = colisao.right
+
+        # eixo Y
+        self.hitbox.y += dy
+        for colisao in colisoes:
+            if self.hitbox.colliderect(colisao):
+                if dy > 0:
+                    self.hitbox.bottom = colisao.top
+                elif dy < 0:
+                    self.hitbox.top = colisao.bottom
+
+        # sincroniza sprite com hitbox
+        self.rect.center = self.hitbox.center
 
     def carregar_frames(self, caminho, num_frames):
         sprite_sheet = pygame.image.load(caminho).convert_alpha()
@@ -76,8 +98,7 @@ class Player(pygame.sprite.Sprite):
             self.rect = self.image.get_rect(center=self.hitbox.center)
             return  # trava tudo até animação acabar
 
-        # -----------------------------
-        # 1️⃣ Trava de dano
+        #  Trava de dano
         if self.tomando_dano:
             self.frame_atual += self.velocidade_animacao
 
@@ -93,21 +114,11 @@ class Player(pygame.sprite.Sprite):
 
             return  # sai sem mover nem atacar
 
-        # -----------------------------
-        # 2️⃣ Iniciar ataque
+        #  Iniciar ataque
         if keys[pygame.K_SPACE] and not self.atacando and (tempo_atual - self.tempo_ataque > self.cooldown_ataque):
             self.atacando = True
             self.frame_atual = 0
             self.tempo_ataque = tempo_atual
-
-        # -----------------------------
-        # 3️⃣ Ataque
-        # Atacar quando tecla SPACE for pressionada
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE] and not self.atacando:
-            self.atacando = True
-            self.tempo_ataque = pygame.time.get_ticks()
-            self.frame_atual = 0
 
         # Executa animação de ataque
         if self.atacando:
@@ -134,27 +145,34 @@ class Player(pygame.sprite.Sprite):
 
             return  # trava movimento durante ataque
 
-        # -----------------------------
-        # 4️⃣ Movimento normal
+        #  Movimento normal
+        movendo = False
+
+        dx = 0
+        dy = 0
         movendo = False
 
         if keys[pygame.K_s]:
-            self.hitbox.y += int(velocidade)
+            dy += int(velocidade)
             movendo = True
         if keys[pygame.K_w]:
-            self.hitbox.y -= int(velocidade)
+            dy -= int(velocidade)
             movendo = True
         if keys[pygame.K_d]:
-            self.hitbox.x += int(velocidade)
+            dx += int(velocidade)
             movendo = True
             self.direcao = "direita"
         if keys[pygame.K_a]:
-            self.hitbox.x -= int(velocidade)
+            dx -= int(velocidade)
             movendo = True
             self.direcao = "esquerda"
 
+        # AQUI entra colisão
+        self.mover_com_colisao(dx, dy, self.colisoes)
+        #self.hitbox.x += dx
+        #self.hitbox.y += dy
         # -----------------------------
-        # 5️⃣ Animação andar/parado
+        # Animação andar/parado
         novo_estado = "andando" if movendo else "parado"
         if novo_estado != self.estado:
             self.frame_atual = 0
@@ -175,11 +193,11 @@ class Player(pygame.sprite.Sprite):
         if self.direcao == "esquerda":
             self.image = pygame.transform.flip(self.image, True, False)
 
-        limitar_na_tela(self.hitbox, WIDTH, HEIGHT)
+       # limitar_na_tela(self.hitbox, WIDTH, HEIGHT)
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
     # -----------------------------
-    # 6️⃣ Receber dano
+    # Receber dano
     def levar_dano(self, dano, origem=None):
         if self.morto:
             return
