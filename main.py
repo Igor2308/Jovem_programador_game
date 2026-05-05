@@ -37,6 +37,10 @@ ESTADO_JOGANDO = "jogando"
 ESTADO_PAUSADO = "pausado"
 ESTADO_GAME_OVER = "game_over"
 
+MAPA_VILA = "vila"
+MAPA_FLORESTA = "floresta"
+mapa_atual = MAPA_VILA # Começamos na vila
+
 tmx_data = pytmx.util_pygame.load_pygame("mapas/Mapa_principal.tmx")
 
 mapa_background = pygame.image.load("mapas/mapa_inicial.png").convert()
@@ -44,6 +48,10 @@ mapa_background = pygame.image.load("mapas/mapa_inicial.png").convert()
 colisoes_vila = []
 for obj in tmx_data.get_layer_by_name("COLISÕES"):
     colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
+
+
+altar_rect = pygame.Rect(1200, 1415, 130, 130) # Ajuste a posição X, Y aqui
+fonte_msg = pygame.font.SysFont("Arial", 24, bold=True)
 
 player = Player("P1")
 player.colisoes = colisoes_vila
@@ -67,6 +75,11 @@ while running:
         if evento.type == pygame.QUIT:
             running = False
         if evento.type == pygame.KEYDOWN:
+            if evento.key == pygame.K_e:
+                # Se estou na vila e no altar, vou para a floresta
+                if mapa_atual == MAPA_VILA and player.hitbox.colliderect(altar_rect):
+                    trocar_mapa(MAPA_FLORESTA, "mapa_floresta_sombria.tmx", "floresta_sombria.png", (200, 300))
+                    estado = ESTADO_JOGANDO # Aqui ele entra no modo de combate
             if evento.key == pygame.K_ESCAPE:
                 if estado == ESTADO_JOGANDO:
                     estado = ESTADO_PAUSADO
@@ -83,6 +96,25 @@ while running:
 
                 estado = ESTADO_JOGANDO
                 # Verifica game over
+
+    def trocar_mapa(novo_mapa, arquivo_tmx, arquivo_png, pos_inicial):
+        global tmx_data, mapa_background, colisoes_vila, mapa_atual
+        
+        # 1. Atualiza qual é o mapa agora
+        mapa_atual = novo_mapa
+        
+        # 2. Carrega os novos arquivos
+        tmx_data = pytmx.util_pygame.load_pygame(f"mapas/{arquivo_tmx}")
+        mapa_background = pygame.image.load(f"mapas/{arquivo_png}").convert()
+        
+        # 3. Reseta e carrega as novas colisões
+        colisoes_vila.clear()
+        for obj in tmx_data.get_layer_by_name("COLISÕES"):
+            colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
+        
+        # 4. Atualiza o player
+        player.colisoes = colisoes_vila
+        player.hitbox.topleft = pos_inicial
 
     if player.vida <= 0 and estado != ESTADO_GAME_OVER:
         player.morto = True
@@ -106,6 +138,9 @@ while running:
     for colisao in colisoes_vila:
         pygame.draw.rect(screen, (255, 0, 0),
             (colisao.x - camera_x, colisao.y - camera_y, colisao.width, colisao.height), 2)
+        
+        pygame.draw.rect(screen, (0, 0, 255), 
+        (altar_rect.x - camera_x, altar_rect.y - camera_y, altar_rect.width, altar_rect.height), 2)
     if estado == ESTADO_VILA:
         player.update(velocidade, [])  # player funciona, mas sem inimigos
 
@@ -115,7 +150,9 @@ while running:
         if len(slimes) == 0:
             for _ in range(2):
                 x, y = posicao_aleatoria()
-                slimes.add(Slime(x, y))
+                novo_slime = Slime(x, y)
+                novo_slime.colisoes = colisoes_vila
+                slimes.add(novo_slime)
 
         player.update(velocidade, slimes)
         slimes.update(player)
@@ -137,6 +174,7 @@ while running:
 
                 x, y = posicao_aleatoria()
                 novo_slime = Slime(x, y)
+                novo_slime.colisoes = colisoes_vila
                 slimes.add(novo_slime)
                 slimes.remove(slime)
 
@@ -178,6 +216,12 @@ while running:
 
     # HUD sempre fica por cima de tudo
     hud.draw(screen, player, slimes_abatidos)
+
+    if estado == ESTADO_VILA and player.hitbox.colliderect(altar_rect):
+        texto = fonte_msg.render("Pressione E para teleportar para a Floresta Sombria", True, (255, 255, 255))
+        # Centraliza o texto na parte superior
+        pos_x = WIDTH // 2 - texto.get_width() // 2
+        screen.blit(texto, (pos_x, 50))
 
     if estado == ESTADO_PAUSADO:
         tela_pause.draw(screen)

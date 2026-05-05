@@ -4,14 +4,15 @@ class Slime(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
 
-        # -----------------------------
         # animações
         self.frames_parado = self.carregar_frames('imagens/slime_parado.png', 9)
         self.frames_andando = self.carregar_frames('imagens/slime_andando.png', 8)
         self.frames_dano = self.carregar_frames('imagens/slime_dano.png', 6)
         self.frames_morte = self.carregar_frames('imagens/slime_morrendo.png', 10)
 
-        # -----------------------------
+        # Lista que recebe as colisões do mapa
+        self.colisoes = [] 
+
         # estado
         self.estado = "parado"
         self.frame_atual = 0
@@ -40,7 +41,6 @@ class Slime(pygame.sprite.Sprite):
         self.tempo_dano = 0
         self.cooldown_dano = 300  # evita receber dano muito rápido
 
-    # --------------------------------
     # carregar frames
     def carregar_frames(self, caminho, quantidade):
         frames = []
@@ -55,7 +55,6 @@ class Slime(pygame.sprite.Sprite):
             frames.append(frame)
         return frames
 
-    # --------------------------------
     # receber dano
     def levar_dano(self, dano):
         if self.morto:
@@ -72,7 +71,6 @@ class Slime(pygame.sprite.Sprite):
                 self.frame_atual = 0
                 self.morto = True
 
-    # --------------------------------
     # update do slime
     def update(self, player):
         if self.morto:
@@ -127,12 +125,27 @@ class Slime(pygame.sprite.Sprite):
         if not self.olhando_direita:
             self.image = pygame.transform.flip(self.image, True, False)
 
-        # movimento
-        self.rect.x += self.direcao.x * self.velocidade * 0.016
-        self.rect.y += self.direcao.y * self.velocidade * 0.016
+        # movimento com colisão 
+        if self.direcao.length() > 0:
+            # Tenta mover no Eixo X
+            self.rect.x += self.direcao.x * self.velocidade * 0.016
+            for colisao in self.colisoes:
+                if self.rect.colliderect(colisao):
+                    if self.direcao.x > 0: # Indo para direita
+                        self.rect.right = colisao.left
+                    if self.direcao.x < 0: # Indo para esquerda
+                        self.rect.left = colisao.right
+
+            # Tenta mover no Eixo Y
+            self.rect.y += self.direcao.y * self.velocidade * 0.016
+            for colisao in self.colisoes:
+                if self.rect.colliderect(colisao):
+                    if self.direcao.y > 0: # Indo para baixo
+                        self.rect.bottom = colisao.top
+                    if self.direcao.y < 0: # Indo para cima
+                        self.rect.top = colisao.bottom
 
         # ataque do slime ao player
-       # slime.py → dentro do update
         tempo_atual = pygame.time.get_ticks()
 
         # verifica se Player está a X pixels de distância
