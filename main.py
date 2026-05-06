@@ -9,6 +9,7 @@ from src.pao import Pao
 from src.ui.hud import HUD
 from src.ui.tela_pause import TelaPause
 from src.ui.tela_game_over import TelaGameOver
+from src.moeda import Moeda
 
 def posicao_aleatoria():
     x = random.randint(0, WIDTH - 45)
@@ -26,11 +27,10 @@ tela_game_over = TelaGameOver()
 
 slimes_abatidos = 0
 
-# slimes
+#cria um grupo
 slimes = pygame.sprite.Group()
-
-#pao
 drops = pygame.sprite.Group()
+moedas = pygame.sprite.Group()
 
 ESTADO_VILA = "vila"
 ESTADO_JOGANDO = "jogando"
@@ -172,6 +172,17 @@ while running:
                     drop = Pao(slime.rect.centerx + offset_x, slime.rect.centery + offset_y)
                     drops.add(drop)
 
+                #vai spawnar a moeda quando o player morrer
+                if random.random() <= 0.7:
+                    offset_x = random.randint(-20, 20)
+                    offset_y = random.randint(-20, 0)
+
+                    moeda = Moeda(
+                        slime.rect.centerx + offset_x,
+                        slime.rect.centery + offset_y
+                    )
+                    moedas.add(moeda)
+                #vai respawnar o slime
                 x, y = posicao_aleatoria()
                 novo_slime = Slime(x, y)
                 novo_slime.colisoes = colisoes_vila
@@ -184,6 +195,11 @@ while running:
             if player.hitbox.colliderect(drop.rect):
                 coletado.append(drop)
                 drop.kill()
+                
+        for moeda in moedas:
+            if player.hitbox.colliderect(moeda.rect):
+                moeda.kill()
+                player.score += 1
 
         for item in coletado:
             player.vida += 50
@@ -203,6 +219,9 @@ while running:
 
     for drop in drops:
         screen.blit(drop.image, (drop.rect.x - camera_x, drop.rect.y - camera_y))
+
+    for moeda in moedas:
+        screen.blit(moeda.image, (moeda.rect.x - camera_x, moeda.rect.y - camera_y))
 
     pygame.draw.rect(
         screen,
