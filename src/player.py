@@ -218,8 +218,10 @@ class Player(pygame.sprite.Sprite):
                 self.vida = 0
                 self.morto = True
                 self.frame_atual = 0
+                self.estado = "morte"
+                self.image = self.frames_morte[0]
                 return
-
+            
             self.cooldowns_por_inimigo[origem] = tempo_atual
             self.tomando_dano = True
             self.frame_atual = 0

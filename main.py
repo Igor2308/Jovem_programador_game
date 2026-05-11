@@ -2,7 +2,7 @@ import pygame
 import random
 import pytmx
 import pytmx.util_pygame
-from settings import WIDTH, HEIGHT, FPS, PLAYER_SIZE, PLAYER_SPEED
+from settings import WIDTH, HEIGHT, FPS, PLAYER_SPEED
 from src.player import Player
 from src.slime import Slime
 from src.pao import Pao
@@ -11,11 +11,26 @@ from src.ui.tela_pause import TelaPause
 from src.ui.tela_game_over import TelaGameOver
 from src.moeda import Moeda
 
-def posicao_aleatoria():
-    x = random.randint(0, WIDTH - 45)
-    y = random.randint(0, HEIGHT - 45)
-    return x, y
+def posicao_aleatoria(colisoes):
+    while True:
+        x = random.randint(0, map_width - 45)
+        y = random.randint(0, map_height - 45)
 
+        area_spawn = pygame.Rect(x, y, 45, 45)
+
+        colidiu = False
+
+        for colisao in colisoes:
+            if area_spawn.colliderect(colisao):
+                colidiu = True
+                break
+
+        if not colidiu:
+            return x, y
+        
+        if area_spawn.colliderect(player.hitbox.inflate(300, 300)):
+            colidiu = True
+        
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Teste")
@@ -26,6 +41,7 @@ tela_pause = TelaPause()
 tela_game_over = TelaGameOver()
 
 slimes_abatidos = 0
+tempo_morte = 0
 
 #cria um grupo
 slimes = pygame.sprite.Group()
@@ -39,11 +55,12 @@ ESTADO_GAME_OVER = "game_over"
 
 MAPA_VILA = "vila"
 MAPA_FLORESTA = "floresta"
-mapa_atual = MAPA_VILA # Começamos na vila
+mapa_atual = MAPA_VILA # Começa na vila
 
 tmx_data = pytmx.util_pygame.load_pygame("mapas/Mapa_principal.tmx")
 
 mapa_background = pygame.image.load("mapas/mapa_inicial.png").convert()
+mapa_overlay = None
 
 colisoes_vila = []
 for obj in tmx_data.get_layer_by_name("COLISÕES"):
@@ -68,7 +85,7 @@ while running:
     delta = clock.tick(FPS) / 1000.0
     velocidade = PLAYER_SPEED * delta 
 
-    if estado == ESTADO_VILA:
+    if estado == ESTADO_VILA: #se estiver no mapa da vila não spawna slimes
         slimes.empty()
 
     for evento in pygame.event.get():
@@ -78,7 +95,7 @@ while running:
             if evento.key == pygame.K_e:
                 # Se estou na vila e no altar, vou para a floresta
                 if mapa_atual == MAPA_VILA and player.hitbox.colliderect(altar_rect):
-                    trocar_mapa(MAPA_FLORESTA, "mapa_floresta_sombria.tmx", "floresta_sombria.png", (200, 300))
+                    trocar_mapa(MAPA_FLORESTA, "mapa_floresta_sombria.tmx", "floresta_sombria.png", (420, 650))
                     estado = ESTADO_JOGANDO # Aqui ele entra no modo de combate
             if evento.key == pygame.K_ESCAPE:
                 if estado == ESTADO_JOGANDO:
@@ -87,44 +104,57 @@ while running:
                     estado = ESTADO_JOGANDO
             if estado == ESTADO_GAME_OVER and evento.key == pygame.K_r:
                 player.vida = 100
-                player.hitbox.center = (WIDTH / 2, HEIGHT / 2)
+                player.hitbox.topleft = (420, 650)
                 player.rect.center = player.hitbox.center
+
                 player.morto = False
+                player.frame_atual = 0
+                player.estado = "parado"
+                player.tomando_dano = False
+                player.atacando = False
 
                 for slime in slimes:
-                    slime.rect.topleft = posicao_aleatoria()
+                    slime.rect.topleft = posicao_aleatoria(colisoes_vila)
 
                 estado = ESTADO_JOGANDO
                 # Verifica game over
 
     def trocar_mapa(novo_mapa, arquivo_tmx, arquivo_png, pos_inicial):
-        global tmx_data, mapa_background, colisoes_vila, mapa_atual
+        global tmx_data, mapa_background, colisoes_vila, mapa_atual, mapa_overlay
         
-        # 1. Atualiza qual é o mapa agora
+        # Atualiza qual é o mapa agora
         mapa_atual = novo_mapa
         
-        # 2. Carrega os novos arquivos
+        # Carrega os novos arquivos
         tmx_data = pytmx.util_pygame.load_pygame(f"mapas/{arquivo_tmx}")
         mapa_background = pygame.image.load(f"mapas/{arquivo_png}").convert()
         
-        # 3. Reseta e carrega as novas colisões
+        if novo_mapa == MAPA_FLORESTA:
+            mapa_overlay = pygame.image.load("mapas/overlay_floresta.png").convert_alpha()
+        else:
+            mapa_overlay = None
+        
+        # Reseta e carrega as novas colisões
         colisoes_vila.clear()
         for obj in tmx_data.get_layer_by_name("COLISÕES"):
             colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
         
-        # 4. Atualiza o player
+        # Atualiza o player
         player.colisoes = colisoes_vila
         player.hitbox.topleft = pos_inicial
 
-    if player.vida <= 0 and estado != ESTADO_GAME_OVER:
-        player.morto = True
-        estado = ESTADO_GAME_OVER
+    if player.morto and tempo_morte == 0:
+        tempo_morte = pygame.time.get_ticks()
+
+    if player.morto:
+        tempo_atual = pygame.time.get_ticks()
+
+        if tempo_atual - tempo_morte >= 2000:
+            estado = ESTADO_GAME_OVER
 
     map_width = mapa_background.get_width()
     map_height = mapa_background.get_height()
 
-    # Atualiza jogo apenas se não estiver game over
-    # SEMPRE desenha o fundo primeiro
     camera_x = player.rect.centerx - WIDTH // 2
     camera_y = player.rect.centery - HEIGHT // 2
 
@@ -133,14 +163,14 @@ while running:
     camera_y = max(0, min(camera_y, map_height - HEIGHT))
 
     screen.blit(mapa_background, (-camera_x, -camera_y))
-    
+
     #comando para ver as colisões dos objetos
-    for colisao in colisoes_vila:
+    '''for colisao in colisoes_vila:
         pygame.draw.rect(screen, (255, 0, 0),
             (colisao.x - camera_x, colisao.y - camera_y, colisao.width, colisao.height), 2)
         
         pygame.draw.rect(screen, (0, 0, 255), 
-        (altar_rect.x - camera_x, altar_rect.y - camera_y, altar_rect.width, altar_rect.height), 2)
+            (altar_rect.x - camera_x, altar_rect.y - camera_y, altar_rect.width, altar_rect.height), 2)'''
     if estado == ESTADO_VILA:
         player.update(velocidade, [])  # player funciona, mas sem inimigos
 
@@ -149,7 +179,7 @@ while running:
      # para spawnar slimes
         if len(slimes) == 0:
             for _ in range(2):
-                x, y = posicao_aleatoria()
+                x, y = posicao_aleatoria(colisoes_vila)
                 novo_slime = Slime(x, y)
                 novo_slime.colisoes = colisoes_vila
                 slimes.add(novo_slime)
@@ -172,7 +202,7 @@ while running:
                     drop = Pao(slime.rect.centerx + offset_x, slime.rect.centery + offset_y)
                     drops.add(drop)
 
-                #vai spawnar a moeda quando o player morrer
+                #vai spawnar a moeda quando o slime morrer
                 if random.random() <= 0.7:
                     offset_x = random.randint(-20, 20)
                     offset_y = random.randint(-20, 0)
@@ -183,7 +213,7 @@ while running:
                     )
                     moedas.add(moeda)
                 #vai respawnar o slime
-                x, y = posicao_aleatoria()
+                x, y = posicao_aleatoria(colisoes_vila)
                 novo_slime = Slime(x, y)
                 novo_slime.colisoes = colisoes_vila
                 slimes.add(novo_slime)
@@ -223,7 +253,7 @@ while running:
     for moeda in moedas:
         screen.blit(moeda.image, (moeda.rect.x - camera_x, moeda.rect.y - camera_y))
 
-    pygame.draw.rect(
+    '''pygame.draw.rect(
         screen,
         (0, 255, 0),  # verde
         (player.hitbox.x - camera_x,
@@ -231,7 +261,12 @@ while running:
         player.hitbox.width,
         player.hitbox.height),
         2  # espessura da borda
-    )
+    )'''
+
+
+
+    if mapa_atual == MAPA_FLORESTA and mapa_overlay:
+        screen.blit(mapa_overlay, (-camera_x, -camera_y))
 
     # HUD sempre fica por cima de tudo
     hud.draw(screen, player, slimes_abatidos)
