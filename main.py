@@ -10,6 +10,7 @@ from src.ui.hud import HUD
 from src.ui.tela_pause import TelaPause
 from src.ui.tela_game_over import TelaGameOver
 from src.moeda import Moeda
+from src.ui.tela_menu import TelaMenu
 
 def posicao_aleatoria(colisoes):
     while True:
@@ -39,6 +40,7 @@ running = True
 hud = HUD()
 tela_pause = TelaPause()
 tela_game_over = TelaGameOver()
+tela_menu = TelaMenu()
 
 slimes_abatidos = 0
 tempo_morte = 0
@@ -48,6 +50,7 @@ slimes = pygame.sprite.Group()
 drops = pygame.sprite.Group()
 moedas = pygame.sprite.Group()
 
+ESTADO_MENU = "menu"
 ESTADO_VILA = "vila"
 ESTADO_JOGANDO = "jogando"
 ESTADO_PAUSADO = "pausado"
@@ -79,7 +82,7 @@ player.rect.center = player.hitbox.center
 players = pygame.sprite.Group()
 players.add(player)
 
-estado = ESTADO_VILA
+estado = ESTADO_MENU
 
 while running:
     delta = clock.tick(FPS) / 1000.0
@@ -91,6 +94,16 @@ while running:
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             running = False
+        if estado == ESTADO_MENU:
+
+            acao = tela_menu.verificar_clique(evento)# verifica se o player clicou no botão 
+
+            if acao == "iniciar":
+                tela_menu.fechar_video()
+                estado = ESTADO_VILA
+
+            elif acao == "sair":
+                running = False
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_e:
                 # Se estou na vila e no altar, vou para a floresta
@@ -162,126 +175,166 @@ while running:
     camera_x = max(0, min(camera_x, map_width - WIDTH))
     camera_y = max(0, min(camera_y, map_height - HEIGHT))
 
+    if estado == ESTADO_MENU:
+        tela_menu.draw(screen)
+
+        pygame.display.flip()
+        continue
+
     screen.blit(mapa_background, (-camera_x, -camera_y))
 
-    #comando para ver as colisões dos objetos
-    '''for colisao in colisoes_vila:
-        pygame.draw.rect(screen, (255, 0, 0),
-            (colisao.x - camera_x, colisao.y - camera_y, colisao.width, colisao.height), 2)
-        
-        pygame.draw.rect(screen, (0, 0, 255), 
-            (altar_rect.x - camera_x, altar_rect.y - camera_y, altar_rect.width, altar_rect.height), 2)'''
+        # player na vila
     if estado == ESTADO_VILA:
-        player.update(velocidade, [])  # player funciona, mas sem inimigos
+        player.update(velocidade, [])
 
+    # combate
     if estado == ESTADO_JOGANDO:
 
-     # para spawnar slimes
+        # spawn slimes
         if len(slimes) == 0:
             for _ in range(2):
                 x, y = posicao_aleatoria(colisoes_vila)
+
                 novo_slime = Slime(x, y)
                 novo_slime.colisoes = colisoes_vila
+
                 slimes.add(novo_slime)
 
         player.update(velocidade, slimes)
         slimes.update(player)
         drops.update()
-        # CONTADOR
-        for slime in slimes:
-            if slime.morto and not hasattr(slime, "contado"):
+
+    # lista dos slimes mortos
+    slimes_mortos = []
+
+    for slime in slimes:
+
+        if slime.morto:
+
+            # conta kill uma vez
+            if not hasattr(slime, "contado"):
                 slimes_abatidos += 1
                 slime.contado = True
 
-        # SPAWN 
-        for slime in list(slimes):
-            if slime.morto:
-                if random.random() <= 0.5:
-                    offset_x = random.randint(-30, 30)
-                    offset_y = random.randint(-20, 0)
-                    drop = Pao(slime.rect.centerx + offset_x, slime.rect.centery + offset_y)
-                    drops.add(drop)
+            # drop pão
+            if random.random() <= 0.5:
 
-                #vai spawnar a moeda quando o slime morrer
-                if random.random() <= 0.7:
-                    offset_x = random.randint(-20, 20)
-                    offset_y = random.randint(-20, 0)
+                offset_x = random.randint(-30, 30)
+                offset_y = random.randint(-20, 0)
 
-                    moeda = Moeda(
-                        slime.rect.centerx + offset_x,
-                        slime.rect.centery + offset_y
-                    )
-                    moedas.add(moeda)
-                #vai respawnar o slime
-                x, y = posicao_aleatoria(colisoes_vila)
-                novo_slime = Slime(x, y)
-                novo_slime.colisoes = colisoes_vila
-                slimes.add(novo_slime)
-                slimes.remove(slime)
+                drop = Pao(
+                    slime.rect.centerx + offset_x,
+                    slime.rect.centery + offset_y
+                )
 
-        coletado = []
+                drops.add(drop)
 
-        for drop in drops:
-            if player.hitbox.colliderect(drop.rect):
-                coletado.append(drop)
-                drop.kill()
-                
-        for moeda in moedas:
-            if player.hitbox.colliderect(moeda.rect):
-                moeda.kill()
-                player.score += 1
+            # drop moeda
+            if random.random() <= 0.7:
 
-        for item in coletado:
-            player.vida += 50
-            if player.vida > 100:
-                player.vida = 100
+                offset_x = random.randint(-20, 20)
+                offset_y = random.randint(-20, 0)
 
-        # contador e spawn continuam iguais...
-    elif estado == ESTADO_GAME_OVER:
-        pass
+                moeda = Moeda(
+                    slime.rect.centerx + offset_x,
+                    slime.rect.centery + offset_y
+                )
 
-    # Desenha sprites
-    for p in players:
-        screen.blit(p.image, (p.rect.x - camera_x, p.rect.y - camera_y))
+                moedas.add(moeda)
 
-    for slime in slimes:
-        screen.blit(slime.image, (slime.rect.x - camera_x, slime.rect.y - camera_y))
+            # adiciona na lista pra remover depois
+            slimes_mortos.append(slime)
+
+    # remove e respawna depois do loop
+    for slime in slimes_mortos:
+
+        slimes.remove(slime)
+
+        x, y = posicao_aleatoria(colisoes_vila)
+
+        novo_slime = Slime(x, y)
+        novo_slime.colisoes = colisoes_vila
+
+        slimes.add(novo_slime)
+
+    # coleta pão
+    coletado = []
 
     for drop in drops:
-        screen.blit(drop.image, (drop.rect.x - camera_x, drop.rect.y - camera_y))
+        if player.hitbox.colliderect(drop.rect):
+            coletado.append(drop)
+            drop.kill()
 
+    # coleta moedas
     for moeda in moedas:
-        screen.blit(moeda.image, (moeda.rect.x - camera_x, moeda.rect.y - camera_y))
+        if player.hitbox.colliderect(moeda.rect):
+            moeda.kill()
+            player.score += 1
 
-    '''pygame.draw.rect(
-        screen,
-        (0, 255, 0),  # verde
-        (player.hitbox.x - camera_x,
-        player.hitbox.y - camera_y,
-        player.hitbox.width,
-        player.hitbox.height),
-        2  # espessura da borda
-    )'''
+    # cura player
+    for item in coletado:
+        player.vida += 50
 
+        if player.vida > 100:
+            player.vida = 100
 
+    # desenha player
+    for p in players:
+        screen.blit(
+            p.image,
+            (p.rect.x - camera_x, p.rect.y - camera_y)
+        )
 
+    # desenha slimes
+    for slime in slimes:
+        screen.blit(
+            slime.image,
+            (slime.rect.x - camera_x, slime.rect.y - camera_y)
+        )
+
+    # desenha drops
+    for drop in drops:
+        screen.blit(
+            drop.image,
+            (drop.rect.x - camera_x, drop.rect.y - camera_y)
+        )
+
+    # desenha moedas
+    for moeda in moedas:
+        screen.blit(
+            moeda.image,
+            (moeda.rect.x - camera_x, moeda.rect.y - camera_y)
+        )
+
+    # overlay floresta
     if mapa_atual == MAPA_FLORESTA and mapa_overlay:
         screen.blit(mapa_overlay, (-camera_x, -camera_y))
 
-    # HUD sempre fica por cima de tudo
+    # HUD
     hud.draw(screen, player, slimes_abatidos)
 
+    # mensagem altar
     if estado == ESTADO_VILA and player.hitbox.colliderect(altar_rect):
-        texto = fonte_msg.render("Pressione E para teleportar para a Floresta Sombria", True, (255, 255, 255))
-        # Centraliza o texto na parte superior
+
+        texto = fonte_msg.render(
+            "Pressione E para teleportar para a Floresta Sombria",
+            True,
+            (255, 255, 255)
+        )
+
         pos_x = WIDTH // 2 - texto.get_width() // 2
+
         screen.blit(texto, (pos_x, 50))
 
+    # pause
     if estado == ESTADO_PAUSADO:
         tela_pause.draw(screen)
 
+    # game over
     if estado == ESTADO_GAME_OVER:
         tela_game_over.draw(screen)
+
+    pygame.display.flip()
 
     pygame.display.flip()
 

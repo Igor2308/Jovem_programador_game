@@ -171,7 +171,6 @@ class Player(pygame.sprite.Sprite):
         self.mover_com_colisao(dx, dy, self.colisoes)
         #self.hitbox.x += dx
         #self.hitbox.y += dy
-        # -----------------------------
         # Animação andar/parado
         novo_estado = "andando" if movendo else "parado"
         if novo_estado != self.estado:
@@ -196,7 +195,6 @@ class Player(pygame.sprite.Sprite):
        # limitar_na_tela(self.hitbox, WIDTH, HEIGHT)
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
-    # -----------------------------
     # Receber dano
     def levar_dano(self, dano, origem=None):
         if self.morto:
