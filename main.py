@@ -45,6 +45,9 @@ tela_menu = TelaMenu()
 slimes_abatidos = 0
 tempo_morte = 0
 
+camera_x = 0
+camera_y = 0
+
 #cria um grupo
 slimes = pygame.sprite.Group()
 drops = pygame.sprite.Group()
@@ -83,6 +86,126 @@ players = pygame.sprite.Group()
 players.add(player)
 
 estado = ESTADO_MENU
+
+def trocar_mapa(novo_mapa, arquivo_tmx, arquivo_png, pos_inicial):
+        global tmx_data, mapa_background, colisoes_vila, mapa_atual, mapa_overlay
+        
+        # Atualiza qual é o mapa agora
+        mapa_atual = novo_mapa
+        
+        # Carrega os novos arquivos
+        tmx_data = pytmx.util_pygame.load_pygame(f"mapas/{arquivo_tmx}")
+        mapa_background = pygame.image.load(f"mapas/{arquivo_png}").convert()
+        
+        if novo_mapa == MAPA_FLORESTA:
+            mapa_overlay = pygame.image.load("mapas/overlay_floresta.png").convert_alpha()
+        else:
+            mapa_overlay = None
+        
+        # Reseta e carrega as novas colisões
+        colisoes_vila.clear()
+        for obj in tmx_data.get_layer_by_name("COLISÕES"):
+            colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
+        
+        # Atualiza o player
+        player.colisoes = colisoes_vila
+        player.hitbox.topleft = pos_inicial
+
+def desenhar_grupo(grupo):
+    for entidade in grupo:
+        screen.blit(
+            entidade.image,
+            (
+                entidade.rect.x - camera_x,
+                entidade.rect.y - camera_y
+            )
+        )
+
+def atualizar_camera():
+    global camera_x, camera_y
+
+    camera_x = player.rect.centerx - WIDTH // 2
+    camera_y = player.rect.centery - HEIGHT // 2
+
+    # trava nos limites do mapa
+    camera_x = max(0, min(camera_x, map_width - WIDTH))
+    camera_y = max(0, min(camera_y, map_height - HEIGHT))
+
+def processar_slimes_mortos():
+    global slimes_abatidos
+
+    slimes_mortos = []
+
+    for slime in slimes:
+
+        if slime.morto:
+
+            # conta kill uma vez
+            if not hasattr(slime, "contado"):
+                slimes_abatidos += 1
+                slime.contado = True
+
+            # drop pão
+            if random.random() <= 0.5:
+
+                offset_x = random.randint(-30, 30)
+                offset_y = random.randint(-20, 0)
+
+                drop = Pao(
+                    slime.rect.centerx + offset_x,
+                    slime.rect.centery + offset_y
+                )
+
+                drops.add(drop)
+
+            # drop moeda
+            if random.random() <= 0.7:
+
+                offset_x = random.randint(-20, 20)
+                offset_y = random.randint(-20, 0)
+
+                moeda = Moeda(
+                    slime.rect.centerx + offset_x,
+                    slime.rect.centery + offset_y
+                )
+
+                moedas.add(moeda)
+
+            slimes_mortos.append(slime)
+
+    # remove e respawna
+    for slime in slimes_mortos:
+
+        slimes.remove(slime)
+
+        x, y = posicao_aleatoria(colisoes_vila)
+
+        novo_slime = Slime(x, y)
+        novo_slime.colisoes = colisoes_vila
+
+        slimes.add(novo_slime)
+
+def coletar_itens():
+
+    # coleta pão
+    for drop in drops:
+
+        if player.hitbox.colliderect(drop.rect):
+
+            drop.kill()
+
+            player.vida += 50
+
+            if player.vida > 100:
+                player.vida = 100
+
+    # coleta moedas
+    for moeda in moedas:
+
+        if player.hitbox.colliderect(moeda.rect):
+
+            moeda.kill()
+            player.score += 1
 
 while running:
     delta = clock.tick(FPS) / 1000.0
@@ -132,30 +255,7 @@ while running:
                 estado = ESTADO_JOGANDO
                 # Verifica game over
 
-    def trocar_mapa(novo_mapa, arquivo_tmx, arquivo_png, pos_inicial):
-        global tmx_data, mapa_background, colisoes_vila, mapa_atual, mapa_overlay
-        
-        # Atualiza qual é o mapa agora
-        mapa_atual = novo_mapa
-        
-        # Carrega os novos arquivos
-        tmx_data = pytmx.util_pygame.load_pygame(f"mapas/{arquivo_tmx}")
-        mapa_background = pygame.image.load(f"mapas/{arquivo_png}").convert()
-        
-        if novo_mapa == MAPA_FLORESTA:
-            mapa_overlay = pygame.image.load("mapas/overlay_floresta.png").convert_alpha()
-        else:
-            mapa_overlay = None
-        
-        # Reseta e carrega as novas colisões
-        colisoes_vila.clear()
-        for obj in tmx_data.get_layer_by_name("COLISÕES"):
-            colisoes_vila.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
-        
-        # Atualiza o player
-        player.colisoes = colisoes_vila
-        player.hitbox.topleft = pos_inicial
-
+    
     if player.morto and tempo_morte == 0:
         tempo_morte = pygame.time.get_ticks()
 
@@ -168,12 +268,7 @@ while running:
     map_width = mapa_background.get_width()
     map_height = mapa_background.get_height()
 
-    camera_x = player.rect.centerx - WIDTH // 2
-    camera_y = player.rect.centery - HEIGHT // 2
-
-    # trava nos limites
-    camera_x = max(0, min(camera_x, map_width - WIDTH))
-    camera_y = max(0, min(camera_y, map_height - HEIGHT))
+    atualizar_camera()
 
     if estado == ESTADO_MENU:
         tela_menu.draw(screen)
@@ -204,107 +299,14 @@ while running:
         slimes.update(player)
         drops.update()
 
-    # lista dos slimes mortos
-    slimes_mortos = []
+    processar_slimes_mortos()
 
-    for slime in slimes:
+    coletar_itens()
 
-        if slime.morto:
-
-            # conta kill uma vez
-            if not hasattr(slime, "contado"):
-                slimes_abatidos += 1
-                slime.contado = True
-
-            # drop pão
-            if random.random() <= 0.5:
-
-                offset_x = random.randint(-30, 30)
-                offset_y = random.randint(-20, 0)
-
-                drop = Pao(
-                    slime.rect.centerx + offset_x,
-                    slime.rect.centery + offset_y
-                )
-
-                drops.add(drop)
-
-            # drop moeda
-            if random.random() <= 0.7:
-
-                offset_x = random.randint(-20, 20)
-                offset_y = random.randint(-20, 0)
-
-                moeda = Moeda(
-                    slime.rect.centerx + offset_x,
-                    slime.rect.centery + offset_y
-                )
-
-                moedas.add(moeda)
-
-            # adiciona na lista pra remover depois
-            slimes_mortos.append(slime)
-
-    # remove e respawna depois do loop
-    for slime in slimes_mortos:
-
-        slimes.remove(slime)
-
-        x, y = posicao_aleatoria(colisoes_vila)
-
-        novo_slime = Slime(x, y)
-        novo_slime.colisoes = colisoes_vila
-
-        slimes.add(novo_slime)
-
-    # coleta pão
-    coletado = []
-
-    for drop in drops:
-        if player.hitbox.colliderect(drop.rect):
-            coletado.append(drop)
-            drop.kill()
-
-    # coleta moedas
-    for moeda in moedas:
-        if player.hitbox.colliderect(moeda.rect):
-            moeda.kill()
-            player.score += 1
-
-    # cura player
-    for item in coletado:
-        player.vida += 50
-
-        if player.vida > 100:
-            player.vida = 100
-
-    # desenha player
-    for p in players:
-        screen.blit(
-            p.image,
-            (p.rect.x - camera_x, p.rect.y - camera_y)
-        )
-
-    # desenha slimes
-    for slime in slimes:
-        screen.blit(
-            slime.image,
-            (slime.rect.x - camera_x, slime.rect.y - camera_y)
-        )
-
-    # desenha drops
-    for drop in drops:
-        screen.blit(
-            drop.image,
-            (drop.rect.x - camera_x, drop.rect.y - camera_y)
-        )
-
-    # desenha moedas
-    for moeda in moedas:
-        screen.blit(
-            moeda.image,
-            (moeda.rect.x - camera_x, moeda.rect.y - camera_y)
-        )
+    desenhar_grupo(players)
+    desenhar_grupo(slimes)
+    desenhar_grupo(drops)
+    desenhar_grupo(moedas)
 
     # overlay floresta
     if mapa_atual == MAPA_FLORESTA and mapa_overlay:
@@ -333,8 +335,6 @@ while running:
     # game over
     if estado == ESTADO_GAME_OVER:
         tela_game_over.draw(screen)
-
-    pygame.display.flip()
 
     pygame.display.flip()
 
